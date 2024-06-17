@@ -10,7 +10,8 @@ import {
 } from '@ionic/react';
 import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase'; // Importa la instancia de Firebase Firestore desde tu archivo firebase.tsx
 
 const Home: React.FC = () => {
   const [scannedData, setScannedData] = useState<string>('');
@@ -30,7 +31,10 @@ const Home: React.FC = () => {
         formats: [BarcodeFormat.QrCode, BarcodeFormat.Code128, BarcodeFormat.Ean13],
       });
       if (barcodes.length > 0) {
-        setScannedData(barcodes[0].rawValue || 'No data found');
+        const scannedValue = barcodes[0].rawValue || 'No data found';
+        setScannedData(scannedValue);
+        // Envía el valor escaneado a Firebase Firestore
+        sendToFirestore(scannedValue);
       } else {
         setScannedData('No barcodes found');
       }
@@ -40,24 +44,23 @@ const Home: React.FC = () => {
     }
   };
 
-  const scanBarcodeWeb = () => {
-    const scanner = new Html5QrcodeScanner('reader', { fps: 10, qrbox: 250 }, false);
-    scanner.render(
-      (decodedText) => {
-        setScannedData(decodedText);
-        scanner.clear();
-      },
-      (error) => {
-        console.error(error);
-      }
-    );
+  const sendToFirestore = async (data: string) => {
+    try {
+      const docRef = await addDoc(collection(db, 'scanned-codes'), {
+        value: data,
+        timestamp: serverTimestamp(),
+      });
+      console.log('Document written with ID: ', docRef.id);
+    } catch (error) {
+      console.error('Error adding document: ', error);
+    }
   };
 
   const scanBarcode = () => {
     if (isPlatform('android') || isPlatform('ios')) {
       scanBarcodeNative();
     } else {
-      scanBarcodeWeb();
+      setScannedData('Web scanning not supported in this version.');
     }
   };
 
