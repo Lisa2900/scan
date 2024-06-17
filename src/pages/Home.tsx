@@ -10,10 +10,11 @@ import {
 } from '@ionic/react';
 import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase'; // Importa la instancia de Firebase Firestore desde tu archivo firebase.tsx
+import { ref, push, getDatabase } from 'firebase/database';
+import { app } from '../firebase'; // Importa la instancia de Firebase Realtime Database desde tu archivo firebase.tsx
 
 const Home: React.FC = () => {
+  const db = getDatabase(app);
   const [scannedData, setScannedData] = useState<string>('');
 
   useEffect(() => {
@@ -33,8 +34,8 @@ const Home: React.FC = () => {
       if (barcodes.length > 0) {
         const scannedValue = barcodes[0].rawValue || 'No data found';
         setScannedData(scannedValue);
-        // Envía el valor escaneado a Firebase Firestore
-        sendToFirestore(scannedValue);
+        // Envía el valor escaneado a Firebase Realtime Database
+        sendToRealtimeDatabase(scannedValue);
       } else {
         setScannedData('No barcodes found');
       }
@@ -44,16 +45,12 @@ const Home: React.FC = () => {
     }
   };
 
-  const sendToFirestore = async (data: string) => {
-    try {
-      const docRef = await addDoc(collection(db, 'scanned-codes'), {
-        value: data,
-        timestamp: serverTimestamp(),
-      });
-      console.log('Document written with ID: ', docRef.id);
-    } catch (error) {
-      console.error('Error adding document: ', error);
-    }
+  const sendToRealtimeDatabase = (data: string) => {
+    const databaseRef = ref(db, 'scanned-codes');
+    push(databaseRef, {
+      value: data,
+      timestamp: new Date().toISOString(),
+    });
   };
 
   const scanBarcode = () => {
