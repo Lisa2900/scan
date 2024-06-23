@@ -12,10 +12,13 @@ import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
 import { ref, set, getDatabase } from 'firebase/database';
 import { app } from '../firebase'; // Importa la instancia de Firebase Realtime Database desde tu archivo firebase.tsx
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
 
 const Home: React.FC = () => {
   const db = getDatabase(app);
+  const firestore = getFirestore(app);
   const [scannedData, setScannedData] = useState<string>('');
+  const [productDetails, setProductDetails] = useState<any>(null);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -36,6 +39,8 @@ const Home: React.FC = () => {
         setScannedData(scannedValue);
         // Envía el valor escaneado a Firebase Realtime Database
         sendToRealtimeDatabase(scannedValue);
+        // Busca el producto en Firestore
+        fetchProductDetails(scannedValue);
       } else {
         setScannedData('No barcodes found');
       }
@@ -51,6 +56,18 @@ const Home: React.FC = () => {
       value: data,
       timestamp: new Date().toISOString(),
     });
+  };
+
+  const fetchProductDetails = async (codigo: string) => {
+    const q = query(collection(firestore, 'inventario'), where('codigo', '==', codigo));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const productData = querySnapshot.docs[0].data();
+      setProductDetails(productData);
+    } else {
+      setProductDetails(null);
+    }
   };
 
   const scanBarcode = () => {
@@ -75,7 +92,21 @@ const Home: React.FC = () => {
             <p>Scanned Data: {scannedData}</p>
           </IonText>
         )}
-        <div id="reader"></div>
+        {productDetails ? (
+          <IonText>
+            <p>Nombre: {productDetails.nombre}</p>
+            <p>Categoría: {productDetails.categoria}</p>
+            <p>Código: {productDetails.codigo}</p>
+            <p>Precio: {productDetails.precio}</p>
+            <p>Cantidad: {productDetails.cantidad}</p>
+          </IonText>
+        ) : (
+          scannedData && (
+            <IonText>
+              <p>No se encontraron detalles del producto para este código.</p>
+            </IonText>
+          )
+        )}
       </IonContent>
     </IonPage>
   );
