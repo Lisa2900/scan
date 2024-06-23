@@ -1,0 +1,13 @@
+.ion-padding {
+    padding: 16px;
+  }
+  
+  .ion-margin-top {
+    margin-top: 16px;
+  }
+  
+  .ion-justify-content-center {
+    display: flex;
+    justify-content: center;
+  }
+  
