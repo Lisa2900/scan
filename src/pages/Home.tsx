@@ -10,7 +10,7 @@ import {
 } from '@ionic/react';
 import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
-import { ref, push, getDatabase } from 'firebase/database';
+import { ref, set, getDatabase } from 'firebase/database';
 import { app } from '../firebase'; // Importa la instancia de Firebase Realtime Database desde tu archivo firebase.tsx
 
 const Home: React.FC = () => {
@@ -46,8 +46,8 @@ const Home: React.FC = () => {
   };
 
   const sendToRealtimeDatabase = (data: string) => {
-    const databaseRef = ref(db, 'scanned-codes');
-    push(databaseRef, {
+    const databaseRef = ref(db, 'codigo'); // Actualiza el registro 'codigo'
+    set(databaseRef, {
       value: data,
       timestamp: new Date().toISOString(),
     });
