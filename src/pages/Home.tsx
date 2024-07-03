@@ -8,20 +8,18 @@ import {
   IonButton,
   IonInput,
   IonText,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
   IonGrid,
   IonRow,
   IonCol,
+  IonCardTitle,
 } from '@ionic/react';
 import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
-import { ref, set, getDatabase } from 'firebase/database';
-import { app } from '../firebase'; // Importa la instancia de Firebase Realtime Database desde tu archivo firebase.tsx
+import { ref, set, getDatabase, onDisconnect } from 'firebase/database';
+import { app } from '../firebase';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import './Home.css'; // Importa tu archivo de estilos personalizados
+import { Button } from "@nextui-org/react";
+import { Card, CardHeader, CardBody, CardFooter, Divider, Link, Image } from "@nextui-org/react";
 
 const Home: React.FC = () => {
   const db = getDatabase(app);
@@ -37,6 +35,14 @@ const Home: React.FC = () => {
       }
     };
     requestPermissions();
+
+    // Limpiar datos en caso de desconexión
+    const databaseRef = ref(db, 'codigo');
+    onDisconnect(databaseRef).remove().then(() => {
+      console.log('Dato será eliminado en caso de desconexión.');
+    }).catch((error) => {
+      console.error('Error configurando onDisconnect:', error);
+    });
   }, []);
 
   const scanBarcodeNative = async () => {
@@ -47,9 +53,7 @@ const Home: React.FC = () => {
       if (barcodes.length > 0) {
         const scannedValue = barcodes[0].rawValue || 'No data found';
         setScannedData(scannedValue);
-        // Envía el valor escaneado a Firebase Realtime Database
         sendToRealtimeDatabase(scannedValue);
-        // Busca el producto en Firestore
         fetchProductDetails(scannedValue);
       } else {
         setScannedData('No barcodes found');
@@ -61,7 +65,7 @@ const Home: React.FC = () => {
   };
 
   const sendToRealtimeDatabase = (data: string) => {
-    const databaseRef = ref(db, 'codigo'); // Actualiza el registro 'codigo'
+    const databaseRef = ref(db, 'codigo');
     set(databaseRef, {
       value: data,
       timestamp: new Date().toISOString(),
@@ -96,6 +100,14 @@ const Home: React.FC = () => {
     }
   };
 
+  const handleDone = () => {
+    const databaseRef = ref(db, 'codigo');
+    set(databaseRef, null); // Elimina el dato en Firebase
+    setScannedData('');
+    setProductDetails(null);
+    setManualCode('');
+  };
+
   return (
     <IonPage>
       <IonHeader>
@@ -105,70 +117,92 @@ const Home: React.FC = () => {
       </IonHeader>
       <IonContent className="ion-padding">
         <IonGrid>
-          <IonRow className="ion-justify-content-center">
+          <IonRow className="flex items-center justify-center">
             <IonCol size="12" size-md="8" size-lg="6">
-              <IonButton expand="full" onClick={scanBarcode}>Escanear con Camara </IonButton>
-              <IonInput
-                className="ion-margin-top"
-                value={manualCode}
-                placeholder="Ingresar codigo Manual"
-                onIonChange={e => setManualCode(e.detail.value!)}
-                clearInput
-              />
-              <IonButton expand="full" className="ion-margin-top" onClick={handleManualCodeInput}>
-                Buscar
-              </IonButton>
+              <div className="flex flex-col items-center">
+                <Button
+                  color="primary"
+                  variant="solid"
+                  className="ion-margin-top bg-blue-500 hover:bg-red-700 text-white px-8 py-4 text-lg"
+                  onClick={scanBarcode}
+                >
+                  Escanear con Camara
+                </Button>
+                <IonInput
+                  className="ion-margin-top w-full max-w-md"
+                  value={manualCode}
+                  placeholder="Ingresar codigo Manual"
+                  onIonChange={e => setManualCode(e.detail.value!)}
+                  clearInput
+                />
+                <Button
+                  color="primary"
+                  variant="solid"
+                  className="ion-margin-top bg-blue-500 hover:bg-red-700 text-white px-8 py-4 text-lg"
+                  onClick={handleManualCodeInput}
+                >
+                  Buscar
+                </Button>
+                <Button
+                  color="secondary"
+                  variant="solid"
+                  className="ion-margin-top bg-gray-500 hover:bg-gray-700 text-white px-8 py-4 text-lg"
+                  onClick={handleDone}
+                >
+                  Listo
+                </Button>
+              </div>
             </IonCol>
           </IonRow>
           {scannedData && (
             <IonRow className="ion-justify-content-center ion-margin-top">
               <IonCol size="12" size-md="8" size-lg="6">
-                <IonCard>
-                  <IonCardHeader>
+                <Card className='bg-black'>
+                  <CardHeader>
                     <IonCardTitle>Codigo escaneado</IonCardTitle>
-                  </IonCardHeader>
-                  <IonCardContent>
-                    <IonText>
+                  </CardHeader>
+                  <CardBody>
+                    <IonText style={{ color: 'white' }}>
                       <p>{scannedData}</p>
                     </IonText>
-                  </IonCardContent>
-                </IonCard>
+                  </CardBody>
+                </Card>
               </IonCol>
             </IonRow>
           )}
           {productDetails ? (
             <IonRow className="ion-justify-content-center ion-margin-top">
               <IonCol size="12" size-md="8" size-lg="6">
-                <IonCard>
-                  <IonCardHeader>
+                <Card className='bg-black'>
+                  <CardHeader>
                     <IonCardTitle>Detalles del Producto</IonCardTitle>
-                  </IonCardHeader>
-                  <IonCardContent>
-                    <IonText>
+                  </CardHeader>
+                  <CardBody>
+                    <IonText style={{ color: 'white' }}>
                       <p><strong>Nombre:</strong> {productDetails.nombre}</p>
                       <p><strong>Categoría:</strong> {productDetails.categoria}</p>
                       <p><strong>Código:</strong> {productDetails.codigo}</p>
                       <p><strong>Precio:</strong> {productDetails.precio}</p>
                       <p><strong>Cantidad:</strong> {productDetails.cantidad}</p>
                     </IonText>
-                  </IonCardContent>
-                </IonCard>
+                  </CardBody>
+                </Card>
               </IonCol>
             </IonRow>
           ) : (
             scannedData && (
               <IonRow className="ion-justify-content-center ion-margin-top">
                 <IonCol size="12" size-md="8" size-lg="6">
-                  <IonCard>
-                    <IonCardHeader>
+                  <Card className='bg-black'>
+                    <CardHeader>
                       <IonCardTitle>No se encontraron detalles del producto</IonCardTitle>
-                    </IonCardHeader>
-                    <IonCardContent>
-                      <IonText>
+                    </CardHeader>
+                    <CardBody>
+                      <IonText style={{ color: "white" }}>
                         <p>No se encontraron detalles del producto para este código.</p>
                       </IonText>
-                    </IonCardContent>
-                  </IonCard>
+                    </CardBody>
+                  </Card>
                 </IonCol>
               </IonRow>
             )
