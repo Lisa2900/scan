@@ -24,6 +24,7 @@
     "@nextui-org/react": "^2.4.2",
     "@types/react-router": "^5.1.20",
     "@types/react-router-dom": "^5.3.3",
+    "emailjs-com": "^3.2.0",
     "firebase": "^10.12.2",
     "framer-motion": "^11.2.12",
     "html5-qrcode": "^2.3.8",
