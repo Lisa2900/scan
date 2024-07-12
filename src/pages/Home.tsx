@@ -13,6 +13,7 @@ import {
   IonCol,
   IonCardTitle,
   IonSpinner,
+  IonAlert,
 } from '@ionic/react';
 import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
@@ -29,6 +30,7 @@ const Home: React.FC = () => {
   const [productDetails, setProductDetails] = useState<any>(null);
   const [manualCode, setManualCode] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null); // Estado para manejar errores
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -59,7 +61,7 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      setScannedData('Error scanning barcode');
+      setError('Error scanning barcode.'); // Mostrar mensaje de error
     }
   };
 
@@ -85,6 +87,7 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching product details:', error);
+      setError('Error fetching product details.'); // Mostrar mensaje de error
     } finally {
       setLoading(false);
     }
@@ -223,6 +226,15 @@ const Home: React.FC = () => {
             )
           )}
         </IonGrid>
+
+        {/* Alerta de Error */}
+        <IonAlert
+          isOpen={!!error}
+          onDidDismiss={() => setError(null)}
+          header={'Error'}
+          message={error || ''} 
+          buttons={['OK']}
+        />
       </IonContent>
     </IonPage>
   );
