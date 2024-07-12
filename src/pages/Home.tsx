@@ -30,7 +30,7 @@ const Home: React.FC = () => {
   const [productDetails, setProductDetails] = useState<any>(null);
   const [manualCode, setManualCode] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null); // Estado para manejar errores
+  const [errorMessage, setErrorMessage] = useState<string>(''); // Nuevo estado para el mensaje de error
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -61,7 +61,7 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      setError('Error scanning barcode.'); // Mostrar mensaje de error
+      setErrorMessage('Error al escanear el código.'); // Mostrar mensaje de error
     }
   };
 
@@ -82,12 +82,14 @@ const Home: React.FC = () => {
       if (!querySnapshot.empty) {
         const productData = querySnapshot.docs[0].data();
         setProductDetails(productData);
+        setErrorMessage(''); // Limpiar mensaje de error si se encuentran detalles
       } else {
         setProductDetails(null);
+        setErrorMessage('No se encontraron detalles del producto.'); // Mensaje si no se encuentran detalles
       }
     } catch (error) {
       console.error('Error fetching product details:', error);
-      setError('Error fetching product details.'); // Mostrar mensaje de error
+      setErrorMessage('Error al obtener los detalles del producto.'); // Mostrar mensaje de error
     } finally {
       setLoading(false);
     }
@@ -107,7 +109,7 @@ const Home: React.FC = () => {
       sendToRealtimeDatabase(manualCode);
       fetchProductDetails(manualCode);
     } else {
-      alert('Por favor, ingrese un código válido.');
+      setErrorMessage('Por favor, ingrese un código válido.'); // Mensaje si el código manual es vacío
     }
   };
 
@@ -117,6 +119,7 @@ const Home: React.FC = () => {
     setScannedData('');
     setProductDetails(null);
     setManualCode('');
+    setErrorMessage(''); // Limpiar mensaje de error al finalizar
   };
 
   return (
@@ -225,16 +228,23 @@ const Home: React.FC = () => {
               </IonRow>
             )
           )}
+          {errorMessage && (
+            <IonRow className="ion-justify-content-center ion-margin-top">
+              <IonCol size="12" size-md="8" size-lg="6">
+                <Card className='bg-red-600'>
+                  <CardHeader>
+                    <IonCardTitle>Error</IonCardTitle>
+                  </CardHeader>
+                  <CardBody>
+                    <IonText style={{ color: 'white' }}>
+                      <p>{errorMessage}</p>
+                    </IonText>
+                  </CardBody>
+                </Card>
+              </IonCol>
+            </IonRow>
+          )}
         </IonGrid>
-
-        {/* Alerta de Error */}
-        <IonAlert
-          isOpen={!!error}
-          onDidDismiss={() => setError(null)}
-          header={'Error'}
-          message={error || ''} 
-          buttons={['OK']}
-        />
       </IonContent>
     </IonPage>
   );
