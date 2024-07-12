@@ -5,12 +5,14 @@ import {
   IonPage,
   IonTitle,
   IonToolbar,
+  IonButton,
   IonInput,
   IonText,
   IonGrid,
   IonRow,
   IonCol,
   IonCardTitle,
+  IonSpinner,
 } from '@ionic/react';
 import { isPlatform } from '@ionic/react';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
@@ -19,23 +21,14 @@ import { app } from '../firebase';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from "@nextui-org/react";
 import { Card, CardHeader, CardBody } from "@nextui-org/react";
-import emailjs from 'emailjs-com';
-
-interface ProductDetails {
-  nombre: string;
-  categoria: string;
-  codigo: string;
-  precio: number;
-  cantidad: number;
-}
 
 const Home: React.FC = () => {
   const db = getDatabase(app);
   const firestore = getFirestore(app);
   const [scannedData, setScannedData] = useState<string>('');
-  const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
+  const [productDetails, setProductDetails] = useState<any>(null);
   const [manualCode, setManualCode] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -46,11 +39,8 @@ const Home: React.FC = () => {
     requestPermissions();
 
     const databaseRef = ref(db, 'codigo');
-    onDisconnect(databaseRef).remove().then(() => {
-      console.log('Dato será eliminado en caso de desconexión.');
-    }).catch((error) => {
+    onDisconnect(databaseRef).remove().catch((error) => {
       console.error('Error configurando onDisconnect:', error);
-      handleError('Error configurando onDisconnect');
     });
   }, []);
 
@@ -69,7 +59,7 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      handleError('Error scanning barcode');
+      setScannedData('Error scanning barcode');
     }
   };
 
@@ -78,26 +68,25 @@ const Home: React.FC = () => {
     set(databaseRef, {
       value: data,
       timestamp: new Date().toISOString(),
-    }).catch(error => {
-      console.error(error);
-      handleError('Error sending data to database');
     });
   };
 
   const fetchProductDetails = async (codigo: string) => {
+    setLoading(true);
     try {
       const q = query(collection(firestore, 'inventario'), where('codigo', '==', codigo));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        const productData = querySnapshot.docs[0].data() as ProductDetails;
+        const productData = querySnapshot.docs[0].data();
         setProductDetails(productData);
       } else {
         setProductDetails(null);
       }
     } catch (error) {
-      console.error(error);
-      handleError('Error fetching product details');
+      console.error('Error fetching product details:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,42 +99,21 @@ const Home: React.FC = () => {
   };
 
   const handleManualCodeInput = () => {
-    if (manualCode) {
+    if (manualCode.trim()) {
       setScannedData(manualCode);
       sendToRealtimeDatabase(manualCode);
       fetchProductDetails(manualCode);
+    } else {
+      alert('Por favor, ingrese un código válido.');
     }
   };
 
   const handleDone = () => {
     const databaseRef = ref(db, 'codigo');
-    set(databaseRef, null).catch(error => {
-      console.error(error);
-      handleError('Error clearing database data');
-    });
+    set(databaseRef, null);
     setScannedData('');
     setProductDetails(null);
     setManualCode('');
-    setError(null);
-  };
-
-  const handleError = (message: string) => {
-    setError(message);
-    sendErrorEmail(message);
-  };
-
-  const sendErrorEmail = (message: string) => {
-    const templateParams = {
-      to_email: 'soportepeques6@gmail.com',
-      message: message,
-    };
-
-    emailjs.send('your_service_id', 'your_template_id', templateParams, 'your_user_id')
-      .then((response) => {
-        console.log('Email sent successfully!', response.status, response.text);
-      }, (err) => {
-        console.error('Failed to send email. Error: ', err);
-      });
   };
 
   return (
@@ -171,7 +139,7 @@ const Home: React.FC = () => {
                 <IonInput
                   className="ion-margin-top w-full max-w-md"
                   value={manualCode}
-                  placeholder="Ingresar codigo Manual"
+                  placeholder="Ingresar código Manual"
                   onIonChange={e => setManualCode(e.detail.value!)}
                   clearInput
                 />
@@ -194,12 +162,19 @@ const Home: React.FC = () => {
               </div>
             </IonCol>
           </IonRow>
-          {scannedData && (
+          {loading && (
+            <IonRow className="ion-justify-content-center ion-margin-top">
+              <IonCol>
+                <IonSpinner name="crescent" />
+              </IonCol>
+            </IonRow>
+          )}
+          {scannedData && !loading && (
             <IonRow className="ion-justify-content-center ion-margin-top">
               <IonCol size="12" size-md="8" size-lg="6">
                 <Card className='bg-black'>
                   <CardHeader>
-                    <IonCardTitle>Codigo escaneado</IonCardTitle>
+                    <IonCardTitle>Código escaneado</IonCardTitle>
                   </CardHeader>
                   <CardBody>
                     <IonText style={{ color: 'white' }}>
@@ -230,7 +205,7 @@ const Home: React.FC = () => {
               </IonCol>
             </IonRow>
           ) : (
-            scannedData && (
+            !loading && scannedData && (
               <IonRow className="ion-justify-content-center ion-margin-top">
                 <IonCol size="12" size-md="8" size-lg="6">
                   <Card className='bg-black'>
@@ -246,22 +221,6 @@ const Home: React.FC = () => {
                 </IonCol>
               </IonRow>
             )
-          )}
-          {error && (
-            <IonRow className="ion-justify-content-center ion-margin-top">
-              <IonCol size="12" size-md="8" size-lg="6">
-                <Card className='bg-black'>
-                  <CardHeader>
-                    <IonCardTitle>Error</IonCardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <IonText style={{ color: "white" }}>
-                      <p>{error}</p>
-                    </IonText>
-                  </CardBody>
-                </Card>
-              </IonCol>
-            </IonRow>
           )}
         </IonGrid>
       </IonContent>
